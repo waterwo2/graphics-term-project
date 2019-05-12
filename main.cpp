@@ -6,8 +6,10 @@
 #include <stdlib.h>
 #include <conio.h> 
 #include <ctime> 
-#include <Windows.h>
-
+#include <iostream>
+#include <string>
+#include <cmath>
+using namespace std;
 
 #define PI 3.14159265
 
@@ -16,7 +18,7 @@ static float beta = PI / 6.0;
 static GLdouble cpos[3];
 static GLint ww, hh;      /* window width and heght */
 static GLfloat cL = 10.0;
-static GLdouble angleView = 30.0;
+static GLdouble angleView = 100.0;
 
 static GLfloat lpos[] = { 0.0, 1.0, 0.0, 0.0 };
 static GLfloat white[] = { 1.0, 1.0, 1.0, 1.0 };
@@ -29,62 +31,346 @@ static GLfloat windowColor[] = { 0.0, 191.0 / 255.0, 1.0, 0.1 };
 static GLfloat lightGray[] = { 0.8, 0.8, 0.8, 0.0 };
 
 static GLint numSpheres;
-
-static GLdouble a = 0.0;
-static GLdouble b = 0.0;
-static GLdouble c = 0.0;
-static GLdouble d = 0.0;
-static GLdouble e = 0.0;
-static GLdouble f = 0.0;
-
 static GLfloat radius;
-
 static GLfloat boxL = 1.0;
 static GLfloat boxW = 1.0;
 static GLfloat boxH = 2.0;
-
-
 static GLint wallOrder[4] = { 0, 1, 2, 3 }; //initial wall render order. -z,-x,+x,+z
+static GLfloat zNegative[4][3] = {};		//array for vertices for wall facing -z direction				
+static GLfloat zPositive[4][3] = {};		//array for vertices for wall facing +z direction
+static GLfloat xNegative[4][3] = {};		//array for vertices for wall facing -x direction							
+static GLfloat xPositive[4][3] = {};		//array for vertices for wall facing +x direction	
+
+typedef struct {	//defines the box
+	float length;
+	float width;
+	float height;
+}Box;
+
+const float  PI_F = 3.14159265358979f;	//fixed pi
+const float packingConstant = (PI_F / (3 * sqrt(2)));	//the most dense pack possible using spheres and boxes
+
+float l = 0.0, w = 0.0, h = 0.0, r = 0.0;
+float boxVolume = 0.0;
+float sphereVolume = 0.0;
+
+int numDensePack = 0;		//gonna use all of these later sadly
+int numNormalPack = 0;
+
+int layer = 0;
+int temp = 0;
+
+Box box = { -1.0,-1.0,-1.0 };	//inital box dimensions (not possible)
+
+struct center {					//centeres to all of the spheres
+	float x, y, z, r;
+};
+
+center** SphereLocations;		//2D array holding all of the boxes, [i] = layer , [j] = spheres in the layer
+float** SphereCenters;			//numSpheres x 4
+center first;					//The first sphere in the box will be this far away
+center** SphereDenseLocations;
+float** SphereCentersDense;
+
+void
+getDimensions() {		//this method is pretty good i think, just gets the dimensions, it wasnt hard to write
+
+	printf("Enter the length of the Box in Inches: ");
+	cin >> l;
+
+	while (!cin.good())
+	{
+		cin.clear();
+		cin.ignore(INT_MAX, '\n');
+
+		printf("Enter a valid length of the Box in Inches: ");
+		cin >> l;
+
+	}
+
+	printf("Enter the width of the Box in Inches: ");
+	cin >> w;
+
+	while (!cin.good())
+	{
+		cin.clear();
+		cin.ignore(INT_MAX, '\n');
+
+		printf("Enter a valid width of the Box in Inches: ");
+		cin >> w;
+
+	}
+
+	printf("Enter the height of the Box in Inches: ");
+	cin >> h;
+
+	while (!cin.good())
+	{
+		cin.clear();
+		cin.ignore(INT_MAX, '\n');
+
+		printf("Enter a valid height of the Box in Inches: ");
+		cin >> h;
+
+	}
+
+	printf("\n\n");
+
+	box.length = l;
+	box.width = w;
+	box.height = h;
+
+}
+void
+getRadiusSpheres() {	//gets the radius, nothing wrong here
+
+	printf("Enter the radius of the Spheres in Inches: ");
+	cin >> r;
+
+	while (!cin.good())
+	{
+		cin.clear();
+		cin.ignore(INT_MAX, '\n');
+
+		printf("Enter a valid radius of the Sphere in Inches: ");
+		cin >> r;
+	}
+}
+
+void
+getNumberSpheres() {	//calculates how many spheres you need per layer
+
+	numDensePack = (int)((boxVolume / sphereVolume) * packingConstant);
+
+	layer = (int)((box.length / (r * 2))*(box.width / (r * 2)));
+	temp = (int)(box.height / (r * 2));
+
+	numNormalPack = layer * temp;
+	printf("\n\n%s %d %s", "The layers will consist of ", layer, " spheres.");
+
+	layer = (layer * (((int)(box.height / (r * 2)))));
+
+	printf("\n\n %s %d %s", "There will be ", temp, " layers of Spheres.");
+}
+
+void
+getCoodsNormalPack() {	//calcualtes the Centers of spheres for a normal pack
+
+	int numLength = (int)(box.length / (r + r));
+	int numWidth = (int)(box.width / (r + r));		//gets total number of spheres that fit per length/width/height
+	int numHeight = (int)(box.height / (r + r));
+
+	int numArea = (numLength * numWidth);			//how many fit on each layer
+
+	printf("\n Number of Spheres that fit the length: %d", numLength);
+	printf("\n Number of Spheres that fit the width : %d", numWidth);
+	printf("\n Number of Spheres that fit the Height: %d", numHeight);
+
+	printf("\n\n Radius is: %f\n\n", r);
+
+	SphereLocations = new center*[numHeight];
+	for (int i = 0; i < numHeight; i++) {
+		SphereLocations[i] = new center[numWidth * numLength];	//initalize the 2D array to fit box dimensions
+	}
+
+	first = { r,r,r };		//use this as base to map on, first sphere is "r" away from left plane of box, right plane of box, and bottom of the box
+
+	for (int i = 0; i < numHeight; i++) {
+
+		float h = r;
+		float l = r;
+		float w = r;	//used to input of sphere centers
+
+		for (int j = 0, k = 0; j < numArea; j++) {
+			SphereLocations[i][j] = { l,w,first.z,r };
+
+			if (k == numLength - 1) {
+				l = r;
+				w = w + 2 * r;
+				k = 0;
+			}
+			else {
+				l = l + r + r;
+				k++;
+			}
+
+		}
+		first = { r , r , first.z + 2 * r }; //going up to the next height layer
+	}
+
+	first = { r,r, r };
+
+	SphereCenters = new float*[numArea * numHeight];
+	for (int i = 0; i < (numArea * numHeight); i++) {
+		SphereCenters[i] = new float[4];
+	}
+
+	int temp = 0;
+
+	for (int i = 0; i < numHeight; i++) {
+		for (int j = 0; j < numArea; j++, temp++) {
+
+			SphereCenters[temp][0] = SphereLocations[i][j].x;
+			SphereCenters[temp][1] = SphereLocations[i][j].y;
+			SphereCenters[temp][2] = SphereLocations[i][j].z;
+			SphereCenters[temp][3] = SphereLocations[i][j].r;
+		}
+	}
+}
+
+int
+getCoordsDensePack() {
+
+	int numSpheres = 0;
+	int longRow = (int)(box.length / (r + r)); //number of spheres that fit in the length (long row)
+	int shortRow = longRow - 1;				   //number of spheres that fit in the legnth (short row)
+
+	int numHeight = 0; //how many layers high does this fit?
+	float hi = r;
+	for (int i = 0; ; i++) {
+
+		if (hi > box.height)
+			break;
+		else {
+			hi = hi + ((sqrt(6.0) * r * 2.0) / 3.0);
+			numHeight++;
+		}
+
+	}
+
+	int numWidth = 0; //how many rows of spheres are there for the width that fit?
+	float wi = r;
+	for (int i = 0; ; i++) {
+
+		if (wi > box.width)
+			break;
+		else {
+			wi = wi + (sqrt(3.0)*r);
+			numWidth++;
+		}
+	}
+
+	int temp = (numWidth / 2);
+
+	int numSpheresLongFirstLayer = ((longRow * temp) + (shortRow * (numWidth - temp)));	 //how many fit on each layer, if the long row is first
+	int numSpheresShortFirstLayer = ((shortRow * temp) + (longRow * (numWidth - temp))); //how many fit on each layer, if the short row is first
+
+	printf("\n Number of Spheres that fit the long row: %d", longRow);
+	printf("\n Number of Spheres that fit the short row: %d", shortRow);
+	printf("\n Number of Rows that fit the width : %d", numWidth);
+	printf("\n Number of Layers that fit the Height: %d", numHeight);
+
+	printf("\n Number of Spheres that fit on a layer if Long row is put first: %d", numSpheresLongFirstLayer);
+	printf("\n Number of Spheres that fit on a layer if Short Row is put first: %d", numSpheresShortFirstLayer);
+
+	printf("\n\n Radius is: %f\n\n", r);
+
+	SphereDenseLocations = new center*[numHeight];
+	for (int i = 0; i < numHeight; i++) {
+		if (i % 2 == 0)
+			SphereDenseLocations[i] = new center[numSpheresLongFirstLayer];	//initalize the 2D array to fit box dimensions
+		else
+			SphereDenseLocations[i] = new center[numSpheresShortFirstLayer];	//initalize the 2D array to fit box dimensions
+	}
+	first = { r,r,r };		//use this as base to map on, first sphere is "r" away from left plane of box, right plane of box, and bottom of the box
+
+	int k = 0; //used to know when the row is done
+	int m = 0; //to know which type of line to make
+
+	for (int i = 0; i < numHeight; i++) {	//for all the layers possible
+
+		float h = first.z;	//used for height holder
+		float l = first.x;	//used for length holder
+		float w = first.y;	//used for width holder
+		k = 0;
+
+		if (i % 2 == 0) { //if its the first row, or every odd row that starts with the longSphereFirstLayer
+			for (int v = 0; v < numWidth; v++) {
+				if (v % 2 == 0) {
+					for (int j = 0; j < longRow; j++) {
+						SphereDenseLocations[i][k] = { l,w,h };
+						++numSpheres;
+						l = l + r + r;
+						k++;
+					}
+					l = r + r;
+				}
+				else {
+					for (int j = 0; j < shortRow; j++) {
+						SphereDenseLocations[i][k] = { l,w,h };
+						++numSpheres;
+						l = l + r + r;
+						k++;
+					}
+					l = first.x;
+				}
+				//printf("\n%d", k);
+				w = w + (sqrt(3.0)*r);
+			}
+
+			first = { r , r , (float)(first.z + ((sqrt(6.0) * r * 2.0) / 3.0)) };
+		}
+		else { //else its the even rows so the shortSphereFirstLayer goes
+
+			l = r + r;
+
+			for (int v = 0; v < numWidth; v++) {
+				if (v % 2 == 0) {
+					for (int j = 0; j < shortRow; j++) {
+						SphereDenseLocations[i][k] = { l,w,h };
+						++numSpheres;
+						l = l + r + r;
+						k++;
+					}
+					l = first.x;
+				}
+				else {
+					for (int j = 0; j < longRow; j++) {
+						SphereDenseLocations[i][k] = { l,w,h };
+						++numSpheres;
+						l = l + r + r;
+						k++;
+					}
+					l = r + r;
+				}
+				w = w + (sqrt(3.0)*r);
+			}
+
+			first = { r , r , (float)(first.z + ((sqrt(6.0) * r * 2.0) / 3.0)) };
+
+		}
+	}
+
+	SphereCentersDense = new float*[numSpheres];
+	for (int i = 0; i < numSpheres; i++) {
+		SphereCentersDense[i] = new float[4];
+	}
+
+	int temp2 = 0;
+
+	for (int i = 0; i < numHeight; i++) {
+		for (int j = 0; j < (longRow * numWidth); j++, temp2++) {	//****************BIGGER THAN IT NEEDS TO BE TO AVOID HARD CONFUSING MATH***************
+			if (temp2 == numSpheres)								//****************THE ARRAY IS BIGGER THAN IT NEEDS TO BE SO SHOULD STOP ADDING WHEN YOU FIND {0.0,0.0,0.0,0.0} IN AN INDEX********************
+				break;
+			SphereCentersDense[temp2][0] = SphereDenseLocations[i][j].x;
+			SphereCentersDense[temp2][1] = SphereDenseLocations[i][j].y;
+			SphereCentersDense[temp2][2] = SphereDenseLocations[i][j].z;
+			SphereCentersDense[temp2][3] = SphereDenseLocations[i][j].r;
+		}
+	}
+
+	return numSpheres;
+}
 
 
-static GLfloat zNegative[4][3] = { {boxW, 0.0, -boxL}, { -boxW, 0.0, -boxL },		//array for vertices for wall facing -z direction
-								   { -boxW, boxH, -boxL }, {boxW, boxH, -boxL } };
 
-static GLfloat zPositive[4][3] = { {-boxW, 0.0, boxL}, {boxW, 0.0, boxL},
-									{boxW, boxH, boxL}, {-boxW, boxH, boxL} };			//array for vertices for wall facing +z direction
 
-static GLfloat xNegative[4][3] = { {-boxW, 0.0, -boxL}, { -boxW, 0.0, boxL },	//array for vertices for wall facing -x direction
-								  { -boxW, boxH, boxL }, { -boxW, boxH, -boxL } };;
 
-static GLfloat xPositive[4][3] = { {boxW, 0.0, boxL}, { boxW, 0.0, -boxL }, 	//array for vertices for wall facing +x direction
-								  { boxW, boxH, -boxL }, { boxW, boxH, boxL } };
 
-static GLfloat zNegBG[4][3] = { {50.0, -50.0, -50.0}, { -50.0, -50.0, -50.0 },
-								   { -50.0, 50.0, -50.0 }, { 50.0, 50.0, -50.0 } };
 
-static GLfloat zPosBG[4][3] = { {-50.0, -50.0, 50.0}, {50.0, -50.0, 50.0},
-								   {50.0, 50.0, 50.0}, {-50.0, 50.0, 50.0} };
 
-static GLfloat xNegBG[4][3] = { {-50.0, -50.0, -50.0}, { -50.0, -50.0, 50.0 },
-								   { -50.0, 50.0, 50.0 }, { -50.0, 50.0, -50.0 } };
 
-static GLfloat xPosBG[4][3] = { {50.0, -50.0, 50.0}, { 50.0, -50.0, -50.0 },
-								   { 50.0, 50.0, -50.0 }, { 50.0, 50.0, 50.0 } };
-static GLfloat L[500][3];
-static GLfloat V[500][3];
-static GLint flyingPolarity[500];
-static GLfloat F[500][3];
 
-int val;
-int menuFlyingMagnets; //Top Level sub menu for flying magnets
-int menuGroundMagnets; //Top level sub menu for ground magnets
-int fpMenu;		//sub menu for flying magnet polarities
-int gpMenu;		//sub menu for ground magnet polarities
-int glMenu;		//sub menu for ground magnet locations
-int gnMenu;		//sub menu for number of ground magnets
-int resetMenu; //menu option to reset the program
-int exitMenu;  //menu option to exit the program
-int menuTop; //Top level menu
 
 void writemessage()
 {
@@ -96,20 +382,19 @@ void writemessage()
 }
 
 void init() {
-	numSpheres = 5;
+
 	radius = 0.1;
-	boxL = 1.0;
-	boxW = 1.0;
-	boxH = 2.0;
-	cL = 10.0;
-	angleView = 30.0;
+	boxL = box.length/2;
+	boxW = box.width/2;
+	boxH = box.height/2;
+	cL = 100.0;
+	angleView = 30.0;	
 	int i;
 	for (i = 0; i < numSpheres; i++) {
-		L[i][0] = -boxW + radius + ((double)i) * (boxW/ (double)numSpheres);
-		L[i][1] = radius;
-		L[i][2] = 0;
-	}
-	
+	//	L[i][0] = -boxW + radius + ((double)i) * (boxW/ (double)numSpheres);
+	//	L[i][1] = radius;
+	//	L[i][2] = 0;
+	}	
 }
 
 void reshape(int w, int h)
@@ -119,7 +404,7 @@ void reshape(int w, int h)
 	glViewport(0, 0, (GLsizei)ww, (GLsizei)hh);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(angleView, (GLfloat)ww / (GLfloat)hh, 1.0, 100.0);
+	gluPerspective(angleView, (GLfloat)ww / (GLfloat)hh, 1.0, 100000.0);
 }
 void setWallOrder() {
 	GLfloat halfW = 0.5 * boxW;
@@ -309,39 +594,6 @@ void drawWalls() {
 	}
 	glDisable(GL_BLEND);
 }
-void drawBG() {
-	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, lightGray);
-	int i;
-	glBegin(GL_POLYGON);
-	for (i = 3; i > -1; i--) {
-		glVertex3fv(xNegBG[i]);
-	}
-	glEnd();
-	glBegin(GL_POLYGON);
-	for (i = 3; i > -1; i--) {
-		glVertex3fv(xPosBG[i]);
-	}
-	glEnd();
-	glBegin(GL_POLYGON);
-	for (i = 3; i > -1; i--) {
-		glVertex3fv(zNegBG[i]);
-	}
-	glEnd();
-	glBegin(GL_POLYGON);
-	for (i = 3; i > -1; i--) {
-		glVertex3fv(zPosBG[i]);
-	}
-	glEnd();
-	glNormal3f(0.0, 1.0, 0.0);
-	glBegin(GL_POLYGON);
-	glVertex3f(-50.0, -50.0, -50.0);
-	glVertex3f(-50.0, -50.0, 50.0);
-	glVertex3f(50.0, -50.0, 50.0);
-	glVertex3f(50.0, -50.0, -50.0);
-	glEnd();
-}
-
-
 void drawSpheres() {
 
 	int i;
@@ -352,8 +604,8 @@ void drawSpheres() {
 		else
 			glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, blue);
 		glPushMatrix();
-		glTranslatef(L[i][0], L[i][1], L[i][2]);
-		glutSolidSphere(radius, 25, 25);
+	//	glTranslatef(L[i][0], L[i][1], L[i][2]);
+	//	glutSolidSphere(radius, 25, 25);
 		glPopMatrix();
 	}
 }
@@ -363,6 +615,7 @@ void drawSpheres() {
 
 void display(void)
 {
+	glClearColor(1.0, 1.0, 1.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	cpos[0] = cL * cos(beta) * sin(alpha);
 	cpos[1] = cL * sin(beta);
@@ -381,7 +634,6 @@ void display(void)
 	glVertex3f(boxW, 0.0, boxL);
 	glVertex3f(boxW, 0.0, -boxL);
 	glEnd();
-	drawBG();
 	glPushMatrix();
 	drawSpheres();
 	glPopMatrix();
@@ -455,7 +707,6 @@ void keyboard(unsigned char key, int x, int y)
 		break;
 	}
 }
-
 void specialkey(GLint key, int x, int y)
 {
 	switch (key) {
@@ -485,45 +736,38 @@ void specialkey(GLint key, int x, int y)
 		break;
 	}
 }
-
-
-
-/*
-void processHits(GLuint hits, GLuint buffer[])
-{
-	unsigned int k, m;
-	GLuint names, *ptr;
-	printf("hits = %d\n", hits);
-	ptr = (GLuint *)buffer;
-	for (k = 0; k < hits; k++) {
-		names = *ptr;
-		printf(" number of names on stack for this hit = %d\n", names); ptr++;
-		printf(" z1 is %f;", (float)*ptr / 0xffffffff); ptr++;
-		printf(" z2 is %f\n", (float)*ptr / 0xffffffff); ptr++;
-		printf(" names on stack are ");
-		for (m = 0; m < names; m++) {
-
-
-			//TO DO: Use hits to update array of colors
-			if (groundPolarity[*ptr] == 2) {
-				groundPolarity[*ptr] = 0;
-			}
-			else {
-				groundPolarity[*ptr] = groundPolarity[*ptr] + 1;
-			}
-			printf("%d ", *ptr); ptr++;
-		}
-		printf("\n");
-	}
-	printf("\n");
-}*/
-
-
-
-
-
 int main(int argc, char** argv)
 {
+	while (box.height <= 0 || box.length <= 0 || box.width <= 0) {
+		getDimensions();
+
+		if (box.height <= 0 || box.length <= 0 || box.width <= 0) {
+			printf("%s", "One of your values was less than or equal to Zero, please enter them again. \n\n");
+		}
+	}
+
+	while (r <= 0.0) {
+		getRadiusSpheres();
+
+		if (r <= 0) {
+			printf("%s %f %s", "\nYour Radius was", r, ". \nPlease enter the radius again. \n\n");
+		}
+	}
+
+	boxVolume = (box.height * box.length * box.width);
+	sphereVolume = ((4.0 / 3.0) * (PI_F)* pow(r, 3));
+
+	printf("\n\n%s %f", "The box Volume is:", boxVolume);
+	printf("\n\n%s %f", "The sphere volume is:", sphereVolume);
+
+	getNumberSpheres();
+
+	printf("\n\n %s %d %s", "Normal packing yields:", numNormalPack, "Spheres.");
+	printf("\n\n %s %d %s", "Maximum packing yields:", numDensePack, "Spheres.\n\n");
+
+	getCoodsNormalPack();
+
+	getCoordsDensePack();
 	srand(time(NULL));
 	writemessage();
 	init();

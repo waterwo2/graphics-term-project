@@ -286,7 +286,7 @@ getCoordsDensePack() {
 	}
 	for (int i = 0; i < numHeight; i++) {
 		for (int j = 0; j < numSpheresLongFirstLayer; j++) {
-			SphereDenseLocations[i][j] = {-1.0, -1.0, -1.0};
+			SphereDenseLocations[i][j] = { -1.0, -1.0, -1.0 };
 		}
 	}
 	first = { r,r,r };		//use this as base to map on, first sphere is "r" away from left plane of box, right plane of box, and bottom of the box
@@ -375,17 +375,18 @@ getCoordsDensePack() {
 
 		}
 	}
-	
+
 	return numSpheres1;
 }
 
 void writemessage()
 {
 	printf("\n\nControls:\n\
-		   z/Z ----------------------- increase/decrease box length\n\
-		   x/X ----------------------- increase/decrease box width\n\
+		   x/X ----------------------- increase/decrease box length\n\
 		   y/Y ----------------------- increase/decrease box height\n\
+		   z/Z ----------------------- increase/decrease box depth\n\
 		   i ------------------------- reprint instructions\n\
+		   p ------------------------- switch pack normal/dense\n\
 		   \n");
 }
 
@@ -601,7 +602,7 @@ void drawSpheres() {
 	glPushMatrix();
 	glRotatef(90, 0.0, 1.0, 0.0);
 	glTranslatef(-boxL, 0.0, -boxW);
-	
+
 	if (packingMode == true) {
 		for (int i = 0; i < numNormalPackMeg; i++) {
 			if (i % 2 == 0) {
@@ -661,7 +662,7 @@ void display(void)
 	glVertex3f(boxW, 0.0, boxL);
 	glVertex3f(boxW, 0.0, -boxL);
 	glEnd();
-	
+
 	glPushMatrix();
 	drawSpheres();
 	glPopMatrix();

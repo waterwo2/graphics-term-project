@@ -489,7 +489,8 @@ void drawWalls() {
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, windowColor);
 	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 64);
 	setWallOrder();
-	if (beta < 0.20) {
+
+	if (cpos[1] < boxH) {
 		glBegin(GL_POLYGON);
 		glVertex3f(-boxW, boxH, -boxL);
 		glVertex3f(-boxW, boxH, boxL);
@@ -586,7 +587,7 @@ void drawWalls() {
 			glEnd();
 		}
 	}
-	if (beta > 0) {
+	if (cpos[1] > boxH) {
 		glBegin(GL_POLYGON);
 		glVertex3f(-boxW, boxH, -boxL);
 		glVertex3f(-boxW, boxH, boxL);

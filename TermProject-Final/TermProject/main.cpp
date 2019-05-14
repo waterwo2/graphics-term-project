@@ -80,8 +80,7 @@ int numDensePackMeg = 0;
 int numNormalPackMeg = 0;
 bool packingMode = true; //true -> normal, false -> dense
 
-void
-getDimensions() {		//this method is pretty good i think, just gets the dimensions, it wasnt hard to write
+void getDimensions() {		//this method is pretty good i think, just gets the dimensions, it wasnt hard to write
 
 	printf("Enter the length of the Box in Inches: ");
 	cin >> l;
@@ -129,8 +128,8 @@ getDimensions() {		//this method is pretty good i think, just gets the dimension
 	box.height = h;
 
 }
-void
-getRadiusSpheres() {	//gets the radius, nothing wrong here
+
+void getRadiusSpheres() {	//gets the radius, nothing wrong here
 
 	printf("Enter the radius of the Spheres in Inches: ");
 	cin >> r;
@@ -145,8 +144,7 @@ getRadiusSpheres() {	//gets the radius, nothing wrong here
 	}
 }
 
-void
-getNumberSpheres() {	//calculates how many spheres you need per layer
+void getNumberSpheres() {	//calculates how many spheres you need per layer
 
 	numDensePack = (int)((boxVolume / sphereVolume) * packingConstant);
 
@@ -161,8 +159,7 @@ getNumberSpheres() {	//calculates how many spheres you need per layer
 	//printf("\n\nThere will be  %d %s", temp, " layers of Spheres.");
 }
 
-void
-getCoodsNormalPack() {	//calcualtes the Centers of spheres for a normal pack
+void getCoodsNormalPack() {	//calcualtes the Centers of spheres for a normal pack
 
 	int numLength = (int)(box.length / (r + r));
 	int numWidth = (int)(box.width / (r + r));		//gets total number of spheres that fit per length/width/height
@@ -227,8 +224,7 @@ getCoodsNormalPack() {	//calcualtes the Centers of spheres for a normal pack
 	numNormalPackMeg = temp;
 }
 
-int
-getCoordsDensePack() {
+int getCoordsDensePack() {
 
 	int numSpheres1 = 0;
 	int longRow = (int)(box.length / (r + r)); //number of spheres that fit in the length (long row)
@@ -375,18 +371,20 @@ getCoordsDensePack() {
 
 		}
 	}
-
 	return numSpheres1;
 }
 
 void writemessage()
 {
 	printf("\n\nControls:\n\
-		   x/X ----------------------- increase/decrease box length\n\
-		   y/Y ----------------------- increase/decrease box height\n\
-		   z/Z ----------------------- increase/decrease box depth\n\
-		   i ------------------------- reprint instructions\n\
+		   x/X ----------------------- decrease/increase box length\n\
+		   y/Y ----------------------- decrease/increase box height\n\
+		   z/Z ----------------------- decrease/increase box depth\n\
+		   -/+ ----------------------- zoom out/in\n\
 		   p ------------------------- switch pack normal/dense\n\
+		   i-------------------------- reprint instructions\n\
+		   ESC ----------------------- close\n\
+		   Arrow Keys ---------------- move camera view\n\
 		   \n");
 }
 
@@ -409,6 +407,7 @@ void reshape(int w, int h)
 	glLoadIdentity();
 	gluPerspective(angleView, (GLfloat)ww / (GLfloat)hh, 1.0, 100000.0);
 }
+
 void setWallOrder() {
 	GLfloat halfW = 0.5 * boxW;
 	GLfloat halfL = 0.5 * boxL;
@@ -482,6 +481,7 @@ void setWallOrder() {
 
 
 }
+
 void drawWalls() {
 	int i;
 	glEnable(GL_BLEND);
@@ -598,6 +598,7 @@ void drawWalls() {
 	}
 	glDisable(GL_BLEND);
 }
+
 void drawSpheres() {
 	glPushMatrix();
 	glRotatef(90, 0.0, 1.0, 0.0);
@@ -637,9 +638,6 @@ void drawSpheres() {
 	}
 	glPopMatrix();
 }
-
-
-
 
 void display(void)
 {
@@ -794,6 +792,7 @@ void keyboard(unsigned char key, int x, int y)
 		break;
 	}
 }
+
 void specialkey(GLint key, int x, int y)
 {
 	switch (key) {
@@ -823,7 +822,6 @@ void specialkey(GLint key, int x, int y)
 		break;
 	}
 }
-
 
 int main(int argc, char** argv)
 {

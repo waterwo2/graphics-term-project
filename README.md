@@ -1,8 +1,10 @@
 Sphere Packing - Term Project - Fred Barthel, Parker Carlson, Martin Soto, Bryan Stoffel, Megan Waterworth
 -------------------------------------------
 This project implements normal and dense sphere packing algorithms and views it in OpenGL.
+
 Bryan, Parker, and Martin: Writing the Algorithm
-Megan and Fred: Doing OpenGL and Animation
+
+Megan and Fred: Writing OpenGL and Animation
 
 
 Getting Started

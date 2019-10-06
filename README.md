@@ -23,7 +23,7 @@ To run this code, you must have OpenGL installed on your computer.
 
 Running the Application
 ------------------------
-To run the application, create a new empty project.
+To run the application, create a new empty project in Visual Studio.
 Then Add New File to the Source Files area and add the Spheres.cpp file. (Located at TermProject-Final_v3 > TermProject_v3 > Spheres.cpp)
 
 When those two things are done, you can simply click "Local Windows Debugger" on the top to run the program.
